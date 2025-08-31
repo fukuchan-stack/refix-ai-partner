@@ -1,26 +1,40 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
+// 拡張機能が有効化されたときに、このメソッドが呼び出されます
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "refix-ai-partner" is now active!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('refix-ai-partner.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Refix AI Partner!');
+	// package.jsonで定義したコマンドをここで実装します
+	let disposable = vscode.commands.registerCommand('refix-ai-partner.reviewSelection', () => {
+		// 現在アクティブなテキストエディタを取得
+		const editor = vscode.window.activeTextEditor;
+
+		if (editor) {
+			// 現在選択されている部分を取得
+			const selection = editor.selection;
+			const selectedText = editor.document.getText(selection);
+
+			if (selectedText) {
+				// テキストが選択されていれば、それを情報メッセージとして表示する
+				// (API連携が成功したかどうかの最初のテストに最適です)
+				vscode.window.showInformationMessage(`レビュー対象のコード： ${selectedText}`);
+				
+				// --- 次のステップ ---
+				// ここで、selectedTextをRefixバックエンドAPIに送信する処理を実装します。
+				
+			} else {
+				// テキストが選択されていなければ、警告メッセージを表示
+				vscode.window.showWarningMessage('Refixでレビューするコードを選択してください。');
+			}
+		} else {
+			// アクティブなエディタがなければ、エラーメッセージを表示
+			vscode.window.showErrorMessage('レビュー対象となるアクティブなエディタがありません。');
+		}
 	});
 
 	context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
+// 拡張機能が無効化されたときに、このメソッドが呼び出されます
 export function deactivate() {}
