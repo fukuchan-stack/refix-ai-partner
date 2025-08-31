@@ -1,0 +1,10 @@
+body {
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-font-family);
+  padding: 1rem;
+}
+
+.app {
+  text-align: center;
+}
