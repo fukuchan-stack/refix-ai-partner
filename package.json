@@ -28,6 +28,21 @@
           "group": "1_modification"
         }
       ]
+    },
+    "configuration": {
+      "title": "Refix AI Partner",
+      "properties": {
+        "refixAiPartner.projectId": {
+          "type": "string",
+          "default": "",
+          "description": "レビュー結果を紐付けるRefixプロジェクトのID。"
+        },
+        "refixAiPartner.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Refixバックエンドと通信するためのAPIキー。"
+        }
+      }
     }
   },
   "scripts": {
@@ -42,17 +57,21 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.91.0",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/node-fetch": "^2.6.13",
+    "@types/vscode": "^1.91.0",
     "@typescript-eslint/eslint-plugin": "^7.11.0",
     "@typescript-eslint/parser": "^7.11.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.4.5",
-    "ts-loader": "^9.5.1",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
     "@vscode/test-cli": "^0.0.9",
-    "@vscode/test-electron": "^2.4.0"
+    "@vscode/test-electron": "^2.4.0",
+    "eslint": "^8.57.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.4.5",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
   }
 }
