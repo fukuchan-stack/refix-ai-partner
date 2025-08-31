@@ -1,23 +1,17 @@
 import * as vscode from 'vscode';
-// node-fetchはまだ使いませんが、後で必要なので残しておきます
-import fetch from 'node-fetch';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Congratulations, your extension "refix-ai-partner" is now active!');
 
 	let disposable = vscode.commands.registerCommand('refix-ai-partner.reviewSelection', () => {
-		// 現在アクティブなパネルがあればそれを表示し、なければ新規作成
-		if (RefixPanel.currentPanel) {
-			RefixPanel.currentPanel.reveal(vscode.ViewColumn.Beside);
-		} else {
-			RefixPanel.createOrShow(context.extensionUri);
-		}
+		RefixPanel.createOrShow(context.extensionUri);
 	});
 
 	context.subscriptions.push(disposable);
 }
 
-// Webviewパネルを管理するためのクラス
 class RefixPanel {
 	public static currentPanel: RefixPanel | undefined;
 	public static readonly viewType = 'refix';
@@ -31,18 +25,19 @@ class RefixPanel {
 			? vscode.window.activeTextEditor.viewColumn
 			: undefined;
 
-		// すでにパネルが存在する場合は、それを表示
 		if (RefixPanel.currentPanel) {
 			RefixPanel.currentPanel._panel.reveal(column);
 			return;
 		}
 
-		// パネルが存在しない場合は、新規作成
 		const panel = vscode.window.createWebviewPanel(
 			RefixPanel.viewType,
 			'Refix AI Review',
-			column || vscode.ViewColumn.One,
-			{ enableScripts: true }
+			column || vscode.ViewColumn.Beside,
+			{
+				enableScripts: true,
+				localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'webview-ui', 'dist')]
+			}
 		);
 
 		RefixPanel.currentPanel = new RefixPanel(panel, extensionUri);
@@ -52,10 +47,8 @@ class RefixPanel {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
 
-		// パネルのコンテンツを設定
-		this._panel.webview.html = this._getHtmlForWebview();
+		this._panel.webview.html = this._getHtmlForWebview(this._panel.webview);
 
-		// パネルが閉じられたときの処理
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 	}
 
@@ -70,24 +63,35 @@ class RefixPanel {
 		}
 	}
 
-	private _getHtmlForWebview() {
-		return `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Refix AI Review</title>
-			</head>
-			<body>
-				<h1>Hello from Refix Webview!</h1>
-				<p>ここに、APIから取得したレビュー結果が表示される予定です。</p>
-			</body>
-			</html>`;
-	}
+	private _getHtmlForWebview(webview: vscode.Webview): string {
+        const scriptPath = vscode.Uri.joinPath(this._extensionUri, 'webview-ui', 'dist', 'bundle.js');
+        const scriptUri = webview.asWebviewUri(scriptPath);
 
-  public reveal(column?: vscode.ViewColumn) {
-    this._panel.reveal(column);
-  }
+        const nonce = getNonce();
+
+        return `<!DOCTYPE html>
+            <html lang="ja">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+                <title>Refix Review</title>
+            </head>
+            <body>
+                <div id="root"></div>
+                <script nonce="${nonce}" src="${scriptUri}"></script>
+            </body>
+            </html>`;
+    }
+}
+
+function getNonce() {
+	let text = '';
+	const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	for (let i = 0; i < 32; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+	return text;
 }
 
 export function deactivate() {}
