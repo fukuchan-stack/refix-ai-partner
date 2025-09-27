@@ -9,35 +9,20 @@ import SnykResults from './components/SnykResults';
 import SnykScanModal from './components/SnykScanModal';
 import type { Suggestion, FilterType, InspectionResult } from './types';
 import { vscode } from './utilities/vscode';
+import hljs from "highlight.js/lib/core";
+
+// highlight.jsに言語を登録 (初回のみ)
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import python from "highlight.js/lib/languages/python";
+hljs.registerLanguage("javascript", javascript);
+hljs.registerLanguage("typescript", typescript);
+hljs.registerLanguage("python", python);
 
 function App() {
-  const [theme, setTheme] = useState(() => {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-      return localStorage.getItem('theme') || 'dark';
-    }
-    if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
-
-  const toggleTheme = () => {
-    const t = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('theme', t);
-    setTheme(t);
-  };
-
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [theme]);
-
-  const [inputText, setInputText] = useState<string>('// Select code in your editor and run "Refix: Review"');
-  const [language, setLanguage] = useState<string>('typescript');
+  const [theme, setTheme] = useState('dark'); // デフォルトをdarkに固定
+  const [inputText, setInputText] = useState<string>('');
+  const [language, setLanguage] = useState<string>('');
   const [analysisResults, setAnalysisResults] = useState<InspectionResult[]>([]);
   const [activeAiTab, setActiveAiTab] = useState<string>("AI集約表示");
   const [activeFilter, setActiveFilter] = useState<FilterType>('All');
@@ -45,38 +30,66 @@ function App() {
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [consolidatedIssues, setConsolidatedIssues] = useState<any[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showSampleButton, setShowSampleButton] = useState(false);
-  const [showClearButton, setShowClearButton] = useState(false);
-  const [showSearchBar, setShowSearchBar] = useState(false);
-  const [showSnykButton, setShowSnykButton] = useState(false);
-  const [snykResults, setSnykResults] = useState<any | null>(null);
-  const [isSnykLoading, setIsSnykLoading] = useState<boolean>(false);
-  const [snykError, setSnykError] = useState<string | null>(null);
-  const [isSnykModalOpen, setIsSnykModalOpen] = useState(false);
+  const [isInspecting, setIsInspecting] = useState(false);
 
+  // 拡張機能とのメッセージ送受信ロジック
   useEffect(() => {
+    console.log("App.tsx: Setting up message listener...");
+
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
+      console.log("App.tsx: Message received from extension:", message);
+      
       switch (message.command) {
         case 'codeSelected':
           setInputText(message.text);
+          if (message.text) {
+            const detectedLang = hljs.highlightAuto(message.text).language || 'plaintext';
+            setLanguage(detectedLang);
+          }
+          // 以前の結果をクリア
+          setAnalysisResults([]);
+          setConsolidatedIssues([]);
+          setSelectedSuggestion(null);
+          break;
+        case 'reviewResult':
+          if (message.error) {
+            // APIエラーなどの場合
+            console.error("Review failed:", message.error);
+          } else {
+            setAnalysisResults(message.results.rawResults);
+            setConsolidatedIssues(message.results.consolidatedIssues);
+            setActiveAiTab('AI集約表示');
+          }
+          setIsInspecting(false);
           break;
       }
     };
-
     window.addEventListener('message', handleMessage);
-
+    
     // Webviewが準備完了したことを拡張機能に通知
     vscode.postMessage({ command: 'ready' });
 
     return () => {
+      console.log("App.tsx: Removing message listener...");
       window.removeEventListener('message', handleMessage);
     };
   }, []);
 
-  const handleApplySuggestion = () => alert("Apply suggestion clicked!");
-  const handleTriggerSnykScan = () => alert("Snyk scan clicked!");
-  const handleCloseSnykResults = () => setSnykResults(null);
+  const handleInspect = () => {
+    if (!inputText.trim()) return;
+    setIsInspecting(true);
+    setSelectedSuggestion(null);
+    vscode.postMessage({
+      command: 'inspectCode',
+      code: inputText,
+      language: language,
+    });
+  };
+
+  const handleApplySuggestion = (suggestionText: string) => {
+    vscode.postMessage({ command: 'applySuggestion', text: suggestionText });
+  };
   
   const allSuggestions = useMemo((): Suggestion[] => {
     const suggestions: Suggestion[] = [];
@@ -108,29 +121,39 @@ function App() {
     return suggestions;
   }, [activeAiTab, activeFilter, allSuggestions]);
 
+
   return (
-    <main className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-200">
-      {isSidebarOpen && (
-        <ControlSidebar
+    <main className="flex h-screen bg-black text-gray-200 text-sm">
+      <ControlSidebar
             activeAiTab={activeAiTab}
             setActiveAiTab={setActiveAiTab}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
             suggestions={allSuggestions}
-            showSampleButton={showSampleButton}
-            setShowSampleButton={setShowSampleButton}
-            showClearButton={showClearButton}
-            setShowClearButton={setShowClearButton}
-            showSearchBar={showSearchBar}
-            setShowSearchBar={setShowSearchBar}
-            showSnykButton={showSnykButton}
-            setShowSnykButton={setShowSnykButton}
             theme={theme}
-            toggleTheme={toggleTheme}
-        />
-      )}
+            // 以下のpropsはWebviewではUIから直接コントロールしないため、ダミー関数を渡します
+            showSampleButton={false}
+            setShowSampleButton={() => {}}
+            showClearButton={false}
+            setShowClearButton={() => {}}
+            showSearchBar={false}
+            setShowSearchBar={() => {}}
+            showSnykButton={false}
+            setShowSnykButton={() => {}}
+            toggleTheme={() => {}}
+      />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 flex-grow flex overflow-hidden">
+        <header className="flex items-center justify-end p-2 border-b border-gray-800">
+             <button 
+                onClick={handleInspect} 
+                disabled={isInspecting || !inputText} 
+                className="text-sm font-bold py-1 px-4 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+                {isInspecting ? '実行中...' : '実行'}
+            </button>
+        </header>
+
+        <div className="p-2 flex-grow flex overflow-hidden">
           <Allotment>
             <Allotment.Pane preferredSize={"60%"}>
               <CodeEditor 
@@ -142,19 +165,20 @@ function App() {
               />
             </Allotment.Pane>
             <Allotment.Pane>
-              <div className="flex flex-col h-full overflow-y-auto bg-gray-50 dark:bg-black">
+              <div className="flex flex-col h-full overflow-y-auto bg-black pl-2">
                 {selectedSuggestion ? (
                     <ResultsPanel 
-                        filteredSuggestions={filteredSuggestions}
                         selectedSuggestion={selectedSuggestion}
                         setSelectedSuggestion={setSelectedSuggestion}
                         setSelectedLine={setSelectedLine}
                         inputText={inputText}
-                        handleApplySuggestion={handleApplySuggestion}
+                        handleApplySuggestion={() => handleApplySuggestion(selectedSuggestion.suggestion)}
                         language={language}
+                        theme={theme}
+                        // 以下のpropsはWebviewでは未実装のためダミー値を渡します
+                        filteredSuggestions={[]}
                         rateLimitError={false}
                         accessToken={null}
-                        theme={theme}
                     />
                 ) : activeAiTab === 'AI集約表示' ? (
                     <ConsolidatedView 
@@ -169,30 +193,19 @@ function App() {
                         setSelectedSuggestion={setSelectedSuggestion}
                         setSelectedLine={setSelectedLine}
                         inputText={inputText}
-                        handleApplySuggestion={handleApplySuggestion}
+                        handleApplySuggestion={() => {}}
                         language={language}
+                        theme={theme}
+                        // 以下のpropsはWebviewでは未実装のためダミー値を渡します
                         rateLimitError={false}
                         accessToken={null}
-                        theme={theme}
                     />
                 )}
-                <SnykResults
-                    results={snykResults}
-                    isLoading={isSnykLoading}
-                    error={snykError}
-                    onClose={handleCloseSnykResults}
-                />
               </div>
             </Allotment.Pane>
           </Allotment>
         </div>
       </div>
-       <SnykScanModal
-          isOpen={isSnykModalOpen}
-          onClose={() => setIsSnykModalOpen(false)}
-          onScan={handleTriggerSnykScan}
-          language={language}
-      />
     </main>
   );
 }
