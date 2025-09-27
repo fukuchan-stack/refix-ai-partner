@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { FiSettings } from 'react-icons/fi';
 import { ThemeSwitcher } from './ThemeSwitcher';
-import { Suggestion, FilterType } from '../types'; // FilterTypeもインポート
+import type { Suggestion, FilterType } from '../types';
 
-// const AI_MODELS = ["Gemini (Balanced)", "Claude (Fast Check)", "GPT-4o (Strict Audit)"]; // Claudeは現在無効
 const AI_MODELS = ["Gemini (Balanced)", "GPT-4o (Strict Audit)"];
 const VIEW_OPTIONS = [...AI_MODELS, "AI集約表示"];
 

@@ -5,9 +5,9 @@ import { CodeEditor } from './components/CodeEditor';
 import { ControlSidebar } from './components/ControlSidebar';
 import { ResultsPanel } from './components/ResultsPanel';
 import ConsolidatedView from './components/ConsolidatedView';
-import { SnykResults } from './components/SnykResults';
-import { SnykScanModal } from './components/SnykScanModal';
-import { Suggestion, FilterType, InspectionResult } from './types';
+import SnykResults from './components/SnykResults';
+import SnykScanModal from './components/SnykScanModal';
+import type { Suggestion, FilterType, InspectionResult } from './types';
 
 function App() {
   const [theme, setTheme] = useState(() => {
