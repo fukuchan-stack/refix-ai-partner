@@ -8,6 +8,7 @@ import ConsolidatedView from './components/ConsolidatedView';
 import SnykResults from './components/SnykResults';
 import SnykScanModal from './components/SnykScanModal';
 import type { Suggestion, FilterType, InspectionResult } from './types';
+import { vscode } from './utilities/vscode';
 
 function App() {
   const [theme, setTheme] = useState(() => {
@@ -35,7 +36,6 @@ function App() {
     }
   }, [theme]);
 
-  // UIを表示するための仮のstate（状態）
   const [inputText, setInputText] = useState<string>('// Select code in your editor and run "Refix: Review"');
   const [language, setLanguage] = useState<string>('typescript');
   const [analysisResults, setAnalysisResults] = useState<InspectionResult[]>([]);
@@ -54,7 +54,26 @@ function App() {
   const [snykError, setSnykError] = useState<string | null>(null);
   const [isSnykModalOpen, setIsSnykModalOpen] = useState(false);
 
-  // 仮のハンドラ関数（まだ機能しません）
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const message = event.data;
+      switch (message.command) {
+        case 'codeSelected':
+          setInputText(message.text);
+          break;
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    // Webviewが準備完了したことを拡張機能に通知
+    vscode.postMessage({ command: 'ready' });
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
   const handleApplySuggestion = () => alert("Apply suggestion clicked!");
   const handleTriggerSnykScan = () => alert("Snyk scan clicked!");
   const handleCloseSnykResults = () => setSnykResults(null);
@@ -77,7 +96,6 @@ function App() {
 
   const filteredSuggestions = useMemo(() => {
     if (activeAiTab === 'AI集約表示') return [];
-
     let suggestions = allSuggestions.filter(s => s.model_name === activeAiTab);
     if (activeFilter !== 'All') {
         const mapping: Record<FilterType, string[]> = {
@@ -89,7 +107,6 @@ function App() {
     }
     return suggestions;
   }, [activeAiTab, activeFilter, allSuggestions]);
-
 
   return (
     <main className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-200">

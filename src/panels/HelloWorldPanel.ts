@@ -1,5 +1,3 @@
-// src/panels/HelloWorldPanel.ts
-
 import * as vscode from "vscode";
 import { getUri } from "../utilities/getUri";
 import { getNonce } from "../utilities/getNonce";
@@ -9,15 +7,28 @@ export class HelloWorldPanel {
   private readonly _panel: vscode.WebviewPanel;
   private _disposables: vscode.Disposable[] = [];
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, selectedText: string) {
     this._panel = panel;
+
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+
     this._panel.webview.html = this._getWebviewContent(this._panel.webview, extensionUri);
+
+    this._panel.webview.onDidReceiveMessage(
+      message => {
+        if (message.command === 'ready') {
+          this.sendSelectedCode(selectedText);
+        }
+      },
+      undefined,
+      this._disposables
+    );
   }
 
-  public static render(extensionUri: vscode.Uri) {
+  public static render(extensionUri: vscode.Uri, selectedText: string) {
     if (HelloWorldPanel.currentPanel) {
       HelloWorldPanel.currentPanel._panel.reveal(vscode.ViewColumn.Two);
+      HelloWorldPanel.currentPanel.sendSelectedCode(selectedText);
     } else {
       const panel = vscode.window.createWebviewPanel(
         "showHelloWorld",
@@ -29,8 +40,12 @@ export class HelloWorldPanel {
         }
       );
 
-      HelloWorldPanel.currentPanel = new HelloWorldPanel(panel, extensionUri);
+      HelloWorldPanel.currentPanel = new HelloWorldPanel(panel, extensionUri, selectedText);
     }
+  }
+
+  public sendSelectedCode(text: string) {
+    this._panel.webview.postMessage({ command: 'codeSelected', text: text });
   }
 
   public dispose() {
@@ -46,14 +61,15 @@ export class HelloWorldPanel {
 
   private _getWebviewContent(webview: vscode.Webview, extensionUri: vscode.Uri) {
     const nonce = getNonce();
-    // Tip: Install the es6-string-html VS Code extension to get html syntax highlighting below
+    const csp = `default-src 'none'; style-src 'unsafe-inline' ${webview.cspSource}; script-src 'nonce-${nonce}' http://localhost:5173;`;
+
     return /*html*/ `
       <!DOCTYPE html>
       <html lang="en">
         <head>
           <meta charset="UTF-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+          <meta http-equiv="Content-Security-Policy" content="${csp}">
           <title>Hello World</title>
         </head>
         <body>
