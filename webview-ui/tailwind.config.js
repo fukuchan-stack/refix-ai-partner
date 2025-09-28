@@ -1,7 +1,6 @@
-// webview-ui/tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: "class", // <-- この行を追加
+  darkMode: ['class', '.vscode-dark'],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",

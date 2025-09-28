@@ -10,6 +10,7 @@ import SnykScanModal from './components/SnykScanModal';
 import type { Suggestion, FilterType, InspectionResult } from './types';
 import { vscode } from './utilities/vscode';
 import hljs from "highlight.js/lib/core";
+import { FiMenu, FiTrash2 } from 'react-icons/fi';
 
 // highlight.jsに言語を登録 (初回のみ)
 import javascript from "highlight.js/lib/languages/javascript";
@@ -19,8 +20,9 @@ hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("python", python);
 
+
 function App() {
-  const [theme, setTheme] = useState('dark'); // デフォルトをdarkに固定
+  const [theme, setTheme] = useState('dark');
   const [inputText, setInputText] = useState<string>('');
   const [language, setLanguage] = useState<string>('');
   const [analysisResults, setAnalysisResults] = useState<InspectionResult[]>([]);
@@ -31,15 +33,11 @@ function App() {
   const [consolidatedIssues, setConsolidatedIssues] = useState<any[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isInspecting, setIsInspecting] = useState(false);
+  const [showClearButton, setShowClearButton] = useState(true);
 
-  // 拡張機能とのメッセージ送受信ロジック
   useEffect(() => {
-    console.log("App.tsx: Setting up message listener...");
-
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
-      console.log("App.tsx: Message received from extension:", message);
-      
       switch (message.command) {
         case 'codeSelected':
           setInputText(message.text);
@@ -47,14 +45,12 @@ function App() {
             const detectedLang = hljs.highlightAuto(message.text).language || 'plaintext';
             setLanguage(detectedLang);
           }
-          // 以前の結果をクリア
           setAnalysisResults([]);
           setConsolidatedIssues([]);
           setSelectedSuggestion(null);
           break;
         case 'reviewResult':
           if (message.error) {
-            // APIエラーなどの場合
             console.error("Review failed:", message.error);
           } else {
             setAnalysisResults(message.results.rawResults);
@@ -66,12 +62,8 @@ function App() {
       }
     };
     window.addEventListener('message', handleMessage);
-    
-    // Webviewが準備完了したことを拡張機能に通知
     vscode.postMessage({ command: 'ready' });
-
     return () => {
-      console.log("App.tsx: Removing message listener...");
       window.removeEventListener('message', handleMessage);
     };
   }, []);
@@ -91,6 +83,14 @@ function App() {
     vscode.postMessage({ command: 'applySuggestion', text: suggestionText });
   };
   
+  const handleClear = () => {
+    setInputText('');
+    setLanguage('');
+    setAnalysisResults([]);
+    setConsolidatedIssues([]);
+    setSelectedSuggestion(null);
+  };
+
   const allSuggestions = useMemo((): Suggestion[] => {
     const suggestions: Suggestion[] = [];
     analysisResults.forEach((result) => {
@@ -121,41 +121,45 @@ function App() {
     return suggestions;
   }, [activeAiTab, activeFilter, allSuggestions]);
 
+  const currentTheme = document.body.classList.contains('vscode-dark') ? 'dark' : 'light';
 
   return (
-    <main className="flex h-screen bg-black text-gray-200 text-sm">
-      <ControlSidebar
+    <main className="flex h-screen bg-white dark:bg-black text-gray-900 dark:text-gray-200 text-sm">
+      {isSidebarOpen && (
+        <ControlSidebar
             activeAiTab={activeAiTab}
             setActiveAiTab={setActiveAiTab}
             activeFilter={activeFilter}
             setActiveFilter={setActiveFilter}
             suggestions={allSuggestions}
-            theme={theme}
-            // 以下のpropsはWebviewではUIから直接コントロールしないため、ダミー関数を渡します
-            showSampleButton={false}
-            setShowSampleButton={() => {}}
-            showClearButton={false}
-            setShowClearButton={() => {}}
-            showSearchBar={false}
-            setShowSearchBar={() => {}}
-            showSnykButton={false}
-            setShowSnykButton={() => {}}
-            toggleTheme={() => {}}
-      />
+            showClearButton={showClearButton}
+            setShowClearButton={setShowClearButton}
+        />
+      )}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-end p-2 border-b border-gray-800">
-             <button 
-                onClick={handleInspect} 
-                disabled={isInspecting || !inputText} 
-                className="text-sm font-bold py-1 px-4 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
-            >
-                {isInspecting ? '実行中...' : '実行'}
-            </button>
+        <header className="flex items-center justify-between p-2 border-b border-gray-700 dark:border-gray-800">
+             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700" title="Toggle Sidebar">
+                <FiMenu />
+             </button>
+             <div className="flex items-center space-x-2">
+                {showClearButton && (
+                    <button title="Clear" onClick={handleClear} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">
+                        <FiTrash2 />
+                    </button>
+                )}
+                <button 
+                    onClick={handleInspect} 
+                    disabled={isInspecting || !inputText} 
+                    className="text-sm font-bold py-1 px-4 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                >
+                    {isInspecting ? '実行中...' : '実行'}
+                </button>
+             </div>
         </header>
 
         <div className="p-2 flex-grow flex overflow-hidden">
-          <Allotment>
-            <Allotment.Pane preferredSize={"60%"}>
+          <Allotment vertical>
+            <Allotment.Pane>
               <CodeEditor 
                 code={inputText} 
                 onCodeChange={setInputText} 
@@ -165,7 +169,7 @@ function App() {
               />
             </Allotment.Pane>
             <Allotment.Pane>
-              <div className="flex flex-col h-full overflow-y-auto bg-black pl-2">
+              <div className="flex flex-col h-full overflow-y-auto bg-white dark:bg-black pl-2">
                 {selectedSuggestion ? (
                     <ResultsPanel 
                         selectedSuggestion={selectedSuggestion}
@@ -174,17 +178,12 @@ function App() {
                         inputText={inputText}
                         handleApplySuggestion={() => handleApplySuggestion(selectedSuggestion.suggestion)}
                         language={language}
-                        theme={theme}
-                        // 以下のpropsはWebviewでは未実装のためダミー値を渡します
-                        filteredSuggestions={[]}
-                        rateLimitError={false}
-                        accessToken={null}
+                        theme={currentTheme}
                     />
                 ) : activeAiTab === 'AI集約表示' ? (
                     <ConsolidatedView 
                         issues={consolidatedIssues}
                         onSuggestionSelect={setSelectedSuggestion}
-                        onAiSelect={setActiveAiTab}
                     />
                 ) : (
                     <ResultsPanel 
@@ -195,10 +194,7 @@ function App() {
                         inputText={inputText}
                         handleApplySuggestion={() => {}}
                         language={language}
-                        theme={theme}
-                        // 以下のpropsはWebviewでは未実装のためダミー値を渡します
-                        rateLimitError={false}
-                        accessToken={null}
+                        theme={currentTheme}
                     />
                 )}
               </div>

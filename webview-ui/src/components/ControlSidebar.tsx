@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { FiSettings } from 'react-icons/fi';
-import { ThemeSwitcher } from './ThemeSwitcher';
 import type { Suggestion, FilterType } from '../types';
 
-const AI_MODELS = ["Gemini (Balanced)", "GPT-4o (Strict Audit)"];
+const AI_MODELS = ["Gemini (Balanced)", "Claude (Fast Check)", "GPT-4o (Strict Audit)"];
 const VIEW_OPTIONS = [...AI_MODELS, "AI集約表示"];
 
 interface ControlSidebarProps {
@@ -12,16 +11,8 @@ interface ControlSidebarProps {
     activeFilter: FilterType;
     setActiveFilter: (filter: FilterType) => void;
     suggestions: Suggestion[];
-    showSampleButton: boolean;
-    setShowSampleButton: (show: boolean) => void;
     showClearButton: boolean;
     setShowClearButton: (show: boolean) => void;
-    showSearchBar: boolean;
-    setShowSearchBar: (show: boolean) => void;
-    showSnykButton: boolean;
-    setShowSnykButton: (show: boolean) => void;
-    theme: string;
-    toggleTheme: () => void;
 }
 
 const ToggleSwitch: React.FC<{ label: string; isEnabled: boolean; onToggle: (enabled: boolean) => void; }> = ({ label, isEnabled, onToggle }) => (
@@ -40,16 +31,8 @@ export const ControlSidebar: React.FC<ControlSidebarProps> = ({
     activeFilter,
     setActiveFilter,
     suggestions,
-    showSampleButton,
-    setShowSampleButton,
     showClearButton,
     setShowClearButton,
-    showSearchBar,
-    setShowSearchBar,
-    showSnykButton,
-    setShowSnykButton,
-    theme,
-    toggleTheme,
 }) => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     
@@ -126,29 +109,10 @@ export const ControlSidebar: React.FC<ControlSidebarProps> = ({
                 {isSettingsOpen && (
                     <div className="p-4 mb-4 bg-gray-50 dark:bg-gray-900 rounded-lg space-y-3">
                         <h4 className="font-bold text-gray-900 dark:text-gray-100">設定</h4>
-                        <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700 dark:text-gray-300">テーマ</span>
-                            <ThemeSwitcher theme={theme} toggleTheme={toggleTheme} />
-                        </div>
-                        <ToggleSwitch 
-                            label="「サンプル」ボタン"
-                            isEnabled={showSampleButton}
-                            onToggle={setShowSampleButton}
-                        />
                          <ToggleSwitch 
                             label="「クリア」ボタン"
                             isEnabled={showClearButton}
                             onToggle={setShowClearButton}
-                        />
-                        <ToggleSwitch 
-                            label="検索バー"
-                            isEnabled={showSearchBar}
-                            onToggle={setShowSearchBar}
-                        />
-                        <ToggleSwitch 
-                            label="Snykスキャンボタン"
-                            isEnabled={showSnykButton}
-                            onToggle={setShowSnykButton}
                         />
                     </div>
                 )}
